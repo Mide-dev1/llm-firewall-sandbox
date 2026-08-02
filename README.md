@@ -6,7 +6,7 @@ against prompt injection, data exfiltration, and insecure output handling
 in LLM-integrated systems.
 
 ## Status
-🚧 Early development — Phase 1 (detection module) in progress.
+Early development — Phase 1 (detection module) in progress.
 
 ## Why this project
 AI-integrated applications can't reliably separate developer instructions
