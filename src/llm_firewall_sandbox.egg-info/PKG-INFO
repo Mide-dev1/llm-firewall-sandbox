@@ -1,0 +1,15 @@
+Metadata-Version: 2.4
+Name: llm-firewall-sandbox
+Version: 0.1.0
+Summary: An interactive security proxy that intercepts, sanitizes, and evaluates prompts before they reach a local LLM, with vector-similarity attack detection and a honeypot sandbox.
+Requires-Python: >=3.11
+Requires-Dist: fastapi>=0.115
+Requires-Dist: uvicorn[standard]>=0.30
+Requires-Dist: pydantic>=2.8
+Requires-Dist: chromadb>=0.5
+Requires-Dist: sentence-transformers>=3.0
+Requires-Dist: pandas>=2.2
+Requires-Dist: httpx>=0.27
+Provides-Extra: dev
+Requires-Dist: pytest>=8.0; extra == "dev"
+Requires-Dist: pytest-cov>=5.0; extra == "dev"

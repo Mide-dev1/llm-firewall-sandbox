@@ -1,0 +1,25 @@
+# Environments
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Project data — datasets, logs, honeypot captures. Never commit raw data.
+data/*
+!data/.gitkeep
+
+# Vector store / embeddings cache
+chroma_db/
+*.sqlite3
+
+# Secrets — API keys, tokens (Hugging Face token, etc.)
+.env
+*.env.local
+
+# Editor
+.vscode/settings.json
+
+# Test / coverage artifacts
+.pytest_cache/
+.coverage
+htmlcov/
