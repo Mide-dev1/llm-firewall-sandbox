@@ -18,6 +18,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from pydantic import BaseModel
 
+from firewall.honeypot import detonate as honeypot_detonate
 from firewall.logging_store import init_db, log_request
 from firewall.output_validator import validate
 from firewall.pipeline import evaluate as run_detection
@@ -57,6 +58,12 @@ def health() -> dict:
 @app.post("/chat", response_model=ChatResponse)
 def chat(request: ChatRequest) -> ChatResponse:
     detection = run_detection(request.message)
+
+    # Honeypot detonation is purely for threat intelligence -- it never
+    # influences what the real user receives. Only runs for flagged
+    # requests, since detonating every clean request would be wasted work.
+    if detection.flagged:
+        honeypot_detonate(request.message)
 
     qllm_result = extract(request.message)
     response_text = respond(qllm_result)

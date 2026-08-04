@@ -32,13 +32,26 @@ CREATE TABLE IF NOT EXISTS requests (
     output_safe INTEGER NOT NULL,
     output_validator_reasons TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS honeypot_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp TEXT NOT NULL,
+    input_text TEXT NOT NULL,
+    decoy_response TEXT NOT NULL,
+    honeytoken_leaked INTEGER NOT NULL
+);
 """
 
 
 def init_db() -> None:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     with sqlite3.connect(DB_PATH) as conn:
-        conn.execute(_SCHEMA)
+        # executescript (not execute!) is required here -- _SCHEMA contains
+        # two CREATE TABLE statements. execute() only runs a single
+        # statement and silently drops anything after the first semicolon,
+        # with no error -- which is exactly the bug that caused
+        # honeypot_events to never actually get created.
+        conn.executescript(_SCHEMA)
 
 
 def log_request(
@@ -52,6 +65,7 @@ def log_request(
     output_safe: bool,
     output_validator_reasons: list[str],
 ) -> None:
+    init_db()  # idempotent -- safe to call on every write, see log_honeypot_event
     with sqlite3.connect(DB_PATH) as conn:
         conn.execute(
             """INSERT INTO requests (
@@ -70,5 +84,23 @@ def log_request(
                 response_text,
                 int(output_safe),
                 json.dumps(output_validator_reasons),
+            ),
+        )
+
+
+def log_honeypot_event(input_text: str, decoy_response: str, honeytoken_leaked: bool) -> None:
+    init_db()  # idempotent (CREATE TABLE IF NOT EXISTS) -- safe to call every time,
+    # ensures this works whether called from the FastAPI app's startup
+    # or a standalone script that never triggered app startup at all.
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.execute(
+            """INSERT INTO honeypot_events (
+                timestamp, input_text, decoy_response, honeytoken_leaked
+            ) VALUES (?, ?, ?, ?)""",
+            (
+                datetime.now(timezone.utc).isoformat(),
+                input_text,
+                decoy_response,
+                int(honeytoken_leaked),
             ),
         )
