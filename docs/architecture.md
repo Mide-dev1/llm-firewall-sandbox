@@ -1,3 +1,8 @@
+---
+title: Architecture
+---
+
+
 # Architecture
 
 ## Threat model
