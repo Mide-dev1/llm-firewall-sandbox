@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>LLM Firewall Dashboard</title>
+    <meta http-equiv="refresh" content="15">
+    <style>
+        :root {
+            --bg: #0f1117;
+            --card: #171a23;
+            --border: #2a2e3a;
+            --text: #e6e8ee;
+            --muted: #8b90a0;
+            --accent: #5b8cff;
+            --danger: #ff5b6e;
+            --safe: #4ade80;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            padding: 32px;
+        }
+
+        h1 {
+            font-size: 1.4rem;
+            margin-bottom: 4px;
+        }
+
+        .subtitle {
+            color: var(--muted);
+            margin-bottom: 28px;
+            font-size: 0.9rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 18px;
+        }
+
+        .card .label {
+            color: var(--muted);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+
+        .card .value {
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin-top: 6px;
+        }
+
+        .card .value.danger {
+            color: var(--danger);
+        }
+
+        .card .value.safe {
+            color: var(--safe);
+        }
+
+        section {
+            margin-bottom: 36px;
+        }
+
+        h2 {
+            font-size: 1.05rem;
+            color: var(--text);
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 8px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+            margin-top: 10px;
+        }
+
+        th {
+            text-align: left;
+            color: var(--muted);
+            font-weight: 500;
+            padding: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        td {
+            padding: 8px;
+            border-bottom: 1px solid var(--border);
+            vertical-align: top;
+        }
+
+        tr:hover td {
+            background: #1c202c;
+        }
+
+        .pill {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 0.75rem;
+        }
+
+        .pill.flagged {
+            background: rgba(255, 91, 110, 0.15);
+            color: var(--danger);
+        }
+
+        .pill.clean {
+            background: rgba(74, 222, 128, 0.15);
+            color: var(--safe);
+        }
+
+        .truncate {
+            max-width: 320px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .empty {
+            color: var(--muted);
+            font-style: italic;
+            padding: 16px 0;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>LLM Firewall Dashboard</h1>
+    <div class="subtitle">Auto-refreshes every 15s &middot; reading from data/firewall_log.sqlite3</div>
+
+    <div class="grid">
+        <div class="card">
+            <div class="label">Total Requests</div>
+            <div class="value">{{ metrics.total_requests }}</div>
+        </div>
+        <div class="card">
+            <div class="label">Flagged</div>
+            <div class="value danger">{{ metrics.flagged_requests }} ({{ "%.0f"|format(metrics.flagged_rate * 100) }}%)
+            </div>
+        </div>
+        <div class="card">
+            <div class="label">Embedded Instructions Caught</div>
+            <div class="value danger">{{ metrics.embedded_instruction_count }}</div>
+        </div>
+        <div class="card">
+            <div class="label">Unsafe Outputs Blocked</div>
+            <div class="value danger">{{ metrics.unsafe_output_count }}</div>
+        </div>
+        <div class="card">
+            <div class="label">Honeypot Detonations</div>
+            <div class="value">{{ metrics.honeypot_events }}</div>
+        </div>
+        <div class="card">
+            <div class="label">Honeytoken Leaks</div>
+            <div class="value {{ 'danger' if metrics.honeytoken_leaks else 'safe' }}">{{ metrics.honeytoken_leaks }}
+            </div>
+        </div>
+    </div>
+
+    <section>
+        <h2>Recent Requests</h2>
+        {% if requests %}
+        <table>
+            <tr>
+                <th>Time</th>
+                <th>Input</th>
+                <th>Flagged</th>
+                <th>Similarity</th>
+                <th>Embedded Instr.</th>
+                <th>Output Safe</th>
+            </tr>
+            {% for r in requests %}
+            <tr>
+                <td>{{ r.timestamp[11:19] }}</td>
+                <td class="truncate">{{ r.input_text }}</td>
+                <td><span class="pill {{ 'flagged' if r.flagged else 'clean' }}">{{ 'flagged' if r.flagged else 'clean'
+                        }}</span></td>
+                <td>{{ "%.2f"|format(r.vector_similarity) }}</td>
+                <td>{{ 'yes' if r.qllm_contains_embedded_instruction else 'no' }}</td>
+                <td>{{ 'yes' if r.output_safe else 'no' }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+        {% else %}
+        <div class="empty">No requests logged yet -- send something to /chat.</div>
+        {% endif %}
+    </section>
+
+    <section>
+        <h2>Honeypot Events</h2>
+        {% if honeypot_events %}
+        <table>
+            <tr>
+                <th>Time</th>
+                <th>Input</th>
+                <th>Leaked</th>
+            </tr>
+            {% for h in honeypot_events %}
+            <tr>
+                <td>{{ h.timestamp[11:19] }}</td>
+                <td class="truncate">{{ h.input_text }}</td>
+                <td><span class="pill {{ 'flagged' if h.honeytoken_leaked else 'clean' }}">{{ 'leaked' if
+                        h.honeytoken_leaked else 'contained' }}</span></td>
+            </tr>
+            {% endfor %}
+        </table>
+        {% else %}
+        <div class="empty">No honeypot detonations yet.</div>
+        {% endif %}
+    </section>
+</body>
+
+</html>

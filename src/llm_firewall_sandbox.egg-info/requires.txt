@@ -8,6 +8,7 @@ httpx>=0.27
 datasets>=2.20
 pyarrow>=17.0
 python-dotenv>=1.0
+jinja2>=3.1
 
 [dev]
 pytest>=8.0

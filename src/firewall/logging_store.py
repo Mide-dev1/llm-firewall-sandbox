@@ -88,6 +88,58 @@ def log_request(
         )
 
 
+def get_summary_metrics() -> dict:
+    init_db()
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        total_requests = conn.execute(
+            "SELECT COUNT(*) AS n FROM requests").fetchone()["n"]
+        flagged_requests = conn.execute(
+            "SELECT COUNT(*) AS n FROM requests WHERE flagged = 1"
+        ).fetchone()["n"]
+        embedded_instruction_count = conn.execute(
+            "SELECT COUNT(*) AS n FROM requests WHERE qllm_contains_embedded_instruction = 1"
+        ).fetchone()["n"]
+        unsafe_output_count = conn.execute(
+            "SELECT COUNT(*) AS n FROM requests WHERE output_safe = 0"
+        ).fetchone()["n"]
+        honeypot_events = conn.execute(
+            "SELECT COUNT(*) AS n FROM honeypot_events").fetchone()["n"]
+        honeytoken_leaks = conn.execute(
+            "SELECT COUNT(*) AS n FROM honeypot_events WHERE honeytoken_leaked = 1"
+        ).fetchone()["n"]
+
+    return {
+        "total_requests": total_requests,
+        "flagged_requests": flagged_requests,
+        "flagged_rate": (flagged_requests / total_requests) if total_requests else 0,
+        "embedded_instruction_count": embedded_instruction_count,
+        "unsafe_output_count": unsafe_output_count,
+        "honeypot_events": honeypot_events,
+        "honeytoken_leaks": honeytoken_leaks,
+    }
+
+
+def get_recent_requests(limit: int = 20) -> list[dict]:
+    init_db()
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            "SELECT * FROM requests ORDER BY id DESC LIMIT ?", (limit,)
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def get_recent_honeypot_events(limit: int = 20) -> list[dict]:
+    init_db()
+    with sqlite3.connect(DB_PATH) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            "SELECT * FROM honeypot_events ORDER BY id DESC LIMIT ?", (limit,)
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
 def log_honeypot_event(input_text: str, decoy_response: str, honeytoken_leaked: bool) -> None:
     init_db()  # idempotent (CREATE TABLE IF NOT EXISTS) -- safe to call every time,
     # ensures this works whether called from the FastAPI app's startup

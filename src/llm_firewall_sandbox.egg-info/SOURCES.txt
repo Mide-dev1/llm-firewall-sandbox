@@ -1,6 +1,16 @@
 README.md
 pyproject.toml
 src/firewall/__init__.py
+src/firewall/app.py
+src/firewall/honeypot.py
+src/firewall/logging_store.py
+src/firewall/ollama_client.py
+src/firewall/output_validator.py
+src/firewall/pipeline.py
+src/firewall/privileged.py
+src/firewall/quarantine.py
+src/firewall/sanitizer.py
+src/firewall/vector_filter.py
 src/llm_firewall_sandbox.egg-info/PKG-INFO
 src/llm_firewall_sandbox.egg-info/SOURCES.txt
 src/llm_firewall_sandbox.egg-info/dependency_links.txt

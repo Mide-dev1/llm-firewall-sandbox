@@ -15,11 +15,19 @@ scrutiny/metrics, not used to decide whether quarantine applies.
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
 from firewall.honeypot import detonate as honeypot_detonate
-from firewall.logging_store import init_db, log_request
+from firewall.logging_store import (
+    get_recent_honeypot_events,
+    get_recent_requests,
+    get_summary_metrics,
+    init_db,
+    log_request,
+)
 from firewall.output_validator import validate
 from firewall.pipeline import evaluate as run_detection
 from firewall.privileged import respond
@@ -35,6 +43,25 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="LLM Application Firewall", lifespan=lifespan)
+templates = Jinja2Templates(directory="templates")
+
+
+@app.get("/", include_in_schema=False)
+def root():
+    return RedirectResponse(url="/dashboard")
+
+
+@app.get("/dashboard", response_class=HTMLResponse)
+def dashboard(request: Request):
+    return templates.TemplateResponse(
+        request,
+        "dashboard.html",
+        {
+            "metrics": get_summary_metrics(),
+            "requests": get_recent_requests(limit=25),
+            "honeypot_events": get_recent_honeypot_events(limit=25),
+        },
+    )
 
 
 class ChatRequest(BaseModel):
